@@ -31,12 +31,13 @@ summary{list-style:none;cursor:pointer;padding:13px 2px;font:600 10px/1 ui-monos
 summary::-webkit-details-marker{display:none}
 summary:after{content:'+';font-size:15px;color:#5d5d66}
 details[open] summary:after{content:'–'}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;align-items:stretch}
 .grid.c2{grid-template-columns:repeat(2,1fr)}
-.thumb{aspect-ratio:1;background:#1d1d20;border:1px solid #2c2c30;border-radius:9px;display:flex;
- align-items:center;justify-content:center;cursor:pointer;padding:8px}
+.thumb{aspect-ratio:1;background:#1d1d20;border:1px solid #2c2c30;border-radius:9px;
+ cursor:pointer;padding:8px;overflow:hidden;position:relative}
 .thumb:active{border-color:#cf291a;background:#2a2a2f}
-.thumb img{max-width:100%;max-height:100%;object-fit:contain;pointer-events:none}
+.thumb img{position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);
+ object-fit:contain;pointer-events:none;display:block}
 input,select,textarea{width:100%;padding:10px;background:#1b1b1e;border:1px solid #2e2e33;color:#f0f0f0;
  border-radius:8px;font-size:16px;font-family:inherit;min-height:42px}
 input[type=range]{padding:0;min-height:34px;accent-color:#cf291a}
@@ -512,12 +513,41 @@ $('zfit').onclick=()=>{fitView();render();};
  else del();});
 /* ---------- export / projet ---------- */
 $('dl').onclick=()=>{
- const c=document.createElement('canvas');c.width=doc.w;c.height=doc.h;
- const x=c.getContext('2d');x.fillStyle=doc.bg;x.fillRect(0,0,doc.w,doc.h);
- x.save();x.beginPath();x.rect(0,0,doc.w,doc.h);x.clip();drawLayers(x);x.restore();
- const a=document.createElement('a');
- a.download='tetatetes_'+doc.w+'x'+doc.h+'.png';
- a.href=c.toDataURL('image/png');a.click();
+ const btn=$('dl'), old=btn.textContent;
+ btn.textContent='…'; btn.disabled=true;
+ try{
+  const c=document.createElement('canvas');c.width=doc.w;c.height=doc.h;
+  const x=c.getContext('2d');x.fillStyle=doc.bg;x.fillRect(0,0,doc.w,doc.h);
+  x.save();x.beginPath();x.rect(0,0,doc.w,doc.h);x.clip();drawLayers(x);x.restore();
+  const name='tetatetes_'+doc.w+'x'+doc.h+'.png';
+  const finish=()=>{btn.textContent=old;btn.disabled=false;};
+  if(c.toBlob){
+   c.toBlob(b=>{
+    if(!b){alert("export impossible");finish();return;}
+    const url=URL.createObjectURL(b);
+    const iOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||
+              (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    if(iOS&&navigator.canShare&&navigator.canShare({files:[new File([b],name,{type:'image/png'})]})){
+     navigator.share({files:[new File([b],name,{type:'image/png'})]})
+      .catch(()=>window.open(url,'_blank'))
+      .finally(()=>{setTimeout(()=>URL.revokeObjectURL(url),4000);finish();});
+     return;
+    }
+    if(iOS){
+     const w=window.open(url,'_blank');
+     if(!w)alert("autorise les fenetres, ou reste appuye sur l'image pour l'enregistrer");
+     setTimeout(()=>{URL.revokeObjectURL(url);finish();},8000);return;
+    }
+    const a=document.createElement('a');
+    a.href=url;a.download=name;a.rel='noopener';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);finish();},4000);
+   },'image/png');
+  }else{
+   const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=name;
+   document.body.appendChild(a);a.click();document.body.removeChild(a);finish();
+  }
+ }catch(err){alert('export impossible : '+err.message);btn.textContent=old;btn.disabled=false;}
 };
 $('save').onclick=()=>{
  if(confirm('OK = enregistrer le projet\nAnnuler = ouvrir un projet')){
@@ -533,3 +563,4 @@ $('save').onclick=()=>{
 };
 
 </script></body></html>
+
